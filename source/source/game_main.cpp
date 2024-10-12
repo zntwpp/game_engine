@@ -62,16 +62,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
                 if (Game.IsKeyPresed('E')) {
                     pos.y += speed * mTimer.DeltaTime();
                 }
-                if (Game.IsKeyPresed('W')) {
+                if (Game.IsKeyPresed(VK_UP)) {
                     pos.z += speed * mTimer.DeltaTime();
                 }
-                if (Game.IsKeyPresed('A')) {
+                if (Game.IsKeyPresed(VK_LEFT)) {
                     pos.x -= speed * mTimer.DeltaTime();
                 }
-                if (Game.IsKeyPresed('S')) {
+                if (Game.IsKeyPresed(VK_DOWN)) {
                     pos.z -= speed * mTimer.DeltaTime();
                 }
-                if (Game.IsKeyPresed('D')) {
+                if (Game.IsKeyPresed(VK_RIGHT)) {
                     pos.x += speed * mTimer.DeltaTime();
                 }
                 if (Game.IsKeyPresed('R')) {

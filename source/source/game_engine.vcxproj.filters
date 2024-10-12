@@ -39,6 +39,9 @@
     <ClCompile Include="..\..\Common\MathHelper.cpp">
       <Filter>source</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Common\Camera.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FrameResource.h">
@@ -72,6 +75,9 @@
       <Filter>header</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Common\MathHelper.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Common\Camera.h">
       <Filter>header</Filter>
     </ClInclude>
   </ItemGroup>

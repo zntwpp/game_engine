@@ -13,6 +13,7 @@ Game_engine::Game_engine(HINSTANCE hInstance)
     ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
 
     mCbvSrvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
 }
 
 Game_engine::~Game_engine()
@@ -37,12 +38,13 @@ void Game_engine::OnResize()
     // The window resized, so update the aspect ratio and recompute the projection matrix.
     XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
     XMStoreFloat4x4(&mProj, P);
+    mCam.SetLens(0.25f * MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
 }
 
 void Game_engine::Update(const GameTimer& gt)
 {
+
     OnKeyboardInput(gt);
-    UpdateCamera(gt);
     // Cycle through the circular frame resource array.
     mCurrFrameResourceIndex = (mCurrFrameResourceIndex + 1) % gNumFrameResources;
     mCurrFrameResource = mFrameResources[mCurrFrameResourceIndex].get();
@@ -143,34 +145,20 @@ void Game_engine::OnMouseUp(WPARAM btnState, int x, int y)
 
 void Game_engine::OnMouseMove(WPARAM btnState, int x, int y)
 {
-    if ((btnState & MK_LBUTTON) != 0)
-    {
-        // Make each pixel correspond to a quarter of a degree.
-        float dx = XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
-        float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
+    if (basic_camera_control) {
+        if ((btnState & MK_LBUTTON) != 0)
+        {
+            // Make each pixel correspond to a quarter of a degree.
+            float dx = XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
+            float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
 
-        // Update angles based on input to orbit camera around box.
-        mTheta += dx;
-        mPhi += dy;
+            mCam.Pitch(dy);
+            mCam.RotateY(dx);
+        }
 
-        // Restrict the angle mPhi.
-        mPhi = MathHelper::Clamp(mPhi, 0.1f, MathHelper::Pi - 0.1f);
+        mLastMousePos.x = x;
+        mLastMousePos.y = y;
     }
-    else if ((btnState & MK_RBUTTON) != 0)
-    {
-        // Make each pixel correspond to 0.2 unit in the scene.
-        float dx = 0.05f * static_cast<float>(x - mLastMousePos.x);
-        float dy = 0.05f * static_cast<float>(y - mLastMousePos.y);
-
-        // Update the camera radius based on input.
-        mRadius += dx - dy;
-
-        // Restrict the radius.
-        mRadius = MathHelper::Clamp(mRadius, 5.0f, 150.0f);
-    }
-
-    mLastMousePos.x = x;
-    mLastMousePos.y = y;
 }
 
 void Game_engine::OnKeyboardInput(const GameTimer& gt)
@@ -179,6 +167,22 @@ void Game_engine::OnKeyboardInput(const GameTimer& gt)
         mIsWireframe = true;
     else
         mIsWireframe = false;
+    switch (basic_camera_control)
+    {
+    case(1):
+        if (GetAsyncKeyState('W') & 0x8000)
+            mCam.Walk(10.0f * gt.DeltaTime());
+        if (GetAsyncKeyState('S') & 0x8000)
+            mCam.Walk(-10.0f * gt.DeltaTime());
+        if (GetAsyncKeyState('A') & 0x8000)
+            mCam.Strafe(-10.0f * gt.DeltaTime());
+        if (GetAsyncKeyState('D') & 0x8000)
+            mCam.Strafe(10.0f * gt.DeltaTime());
+
+        mCam.UpdateViewMatrix();
+    default:
+        break;
+    }
 }
 
 bool Game_engine::IsKeyPresed(char key) {
@@ -233,6 +237,7 @@ void Game_engine::LoadTexture(std::wstring filepath, std::string name)
     tex_names.push_back(name);
 }
 
+//Light
 void Game_engine::SetLight(DirectX::XMFLOAT3 pos_dir, DirectX::XMFLOAT3 strength)
 {
     set_light(pos_dir, strength);
@@ -253,20 +258,66 @@ void Game_engine::EditAmbient(DirectX::XMFLOAT4 amb)
     edit_ambient(amb);
 }
 
-void Game_engine::UpdateCamera(const GameTimer& gt)
+//Camera
+void Game_engine::SetCameraPos(DirectX::XMFLOAT3 pos)
 {
-    // Convert Spherical to Cartesian coordinates.
-    mEyePos.x = mRadius * sinf(mPhi) * cosf(mTheta);
-    mEyePos.z = mRadius * sinf(mPhi) * sinf(mTheta);
-    mEyePos.y = mRadius * cosf(mPhi);
+    mCam.SetPosition(pos);
+    mCam.UpdateViewMatrix();
+}
 
-    // Build the view matrix.
-    XMVECTOR pos = XMVectorSet(mEyePos.x, mEyePos.y, mEyePos.z, 1.0f);
-    XMVECTOR target = XMVectorZero();
-    XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+DirectX::XMFLOAT3 Game_engine::GetCameraPos()
+{
+    return mCam.GetPosition3f();
+}
 
-    XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
-    XMStoreFloat4x4(&mView, view);
+void Game_engine::CameraWalk(float d)
+{
+    mCam.Walk(d);
+    mCam.UpdateViewMatrix();
+}
+
+void Game_engine::CameraStrafe(float d)
+{
+    mCam.Strafe(d);
+    mCam.UpdateViewMatrix();
+}
+
+void Game_engine::CameraPitch(float angle)
+{
+    mCam.Pitch(angle);
+    mCam.UpdateViewMatrix();
+}
+
+void Game_engine::CameraRotateY(float angle)
+{
+    mCam.RotateY(angle);
+    mCam.UpdateViewMatrix();
+}
+
+void Game_engine::CameraLookAt(DirectX::FXMVECTOR pos, DirectX::FXMVECTOR target, DirectX::FXMVECTOR worldUp)
+{
+    mCam.LookAt(pos, target, worldUp);
+    mCam.UpdateViewMatrix();
+}
+
+void Game_engine::CameraLookAt(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& target, const DirectX::XMFLOAT3& up)
+{
+    mCam.LookAt(pos, target, up);
+}
+
+void Game_engine::CameraSetLens(float fovY, float aspect, float zn, float zf)
+{
+    mCam.SetLens(fovY, aspect, zn, zf);
+}
+
+void Game_engine::DeleteBaseCamControl()
+{
+    basic_camera_control = 0;
+}
+
+void Game_engine::UseBaseCamControl()
+{
+    basic_camera_control = 0;
 }
 
 void Game_engine::UpdateObjectCBs(const GameTimer& gt)
@@ -296,8 +347,9 @@ void Game_engine::UpdateObjectCBs(const GameTimer& gt)
 
 void Game_engine::UpdateMainPassCB(const GameTimer& gt)
 {
-    XMMATRIX view = XMLoadFloat4x4(&mView);
-    XMMATRIX proj = XMLoadFloat4x4(&mProj);
+  
+    XMMATRIX view = mCam.GetView();
+    XMMATRIX proj = mCam.GetProj();
 
     XMMATRIX viewProj = XMMatrixMultiply(view, proj);
     XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
@@ -310,7 +362,7 @@ void Game_engine::UpdateMainPassCB(const GameTimer& gt)
     XMStoreFloat4x4(&mMainPassCB.InvProj, XMMatrixTranspose(invProj));
     XMStoreFloat4x4(&mMainPassCB.ViewProj, XMMatrixTranspose(viewProj));
     XMStoreFloat4x4(&mMainPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
-    mMainPassCB.EyePosW = mEyePos;
+    mMainPassCB.EyePosW = mCam.GetPosition3f();
     mMainPassCB.RenderTargetSize = XMFLOAT2((float)mClientWidth, (float)mClientHeight);
     mMainPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / mClientWidth, 1.0f / mClientHeight);
     mMainPassCB.NearZ = 1.0f;

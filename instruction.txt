@@ -18,3 +18,15 @@ DrawObject(name) - to draw object if the object has been removed from the drawin
 DoNotDrawObject(name) - to remove object from drawing cycle
 IsKeyPresed(key) - check key
 RotateObject(name, matrix) - comming soon
+
+Camera:
+SetCameraPos(pos) - set camera pos
+GetCameraPos() - get camera pos
+CameraWalk(d) move camera on d
+CameraStrafe(d) strafe camera on d
+CameraPitch(angle) pitch
+CameraRotateY(angle) rotate on y axis
+CameraLookAt(pos, target, up) look at
+CameraSetLens(fovY, aspect, zn, zf) set lens
+DeletBaseCamControl() dont use base camera control
+UseBaseCamControl() use base camera control 

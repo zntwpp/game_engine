@@ -6,6 +6,7 @@
 #include "FrameResource.h"
 #include <DirectXCollision.h>
 #include "Lighting.h"
+#include "../../Common/Camera.h"
 
 
 using Microsoft::WRL::ComPtr;
@@ -92,7 +93,8 @@ public:
     virtual void Update(const GameTimer& gt)override;
     virtual void Draw(const GameTimer& gt)override;
 public:
-    //Game engine interface
+    //Game engine interface:
+    //Objects/Control
     void CreateGeometry(GeometryGenerator::MeshData obj, XMMATRIX pos, std::string mat_name, std::string name);
     void CreateWorld();
     void MoveObject(std::string name, XMMATRIX pos);
@@ -102,11 +104,32 @@ public:
     void RotateObject(std::string name, XMMATRIX rotation);
     void CreateMaterial(std::string name, XMFLOAT4 difuse_albedo, XMFLOAT3 FresnelR0, float Roughnes, XMFLOAT3 matTransform = XMFLOAT3(1, 1, 1));
     void UpdateMaterial(std::string name, XMFLOAT4 difuse_albedo, XMFLOAT3 FresnelR0, float Roughnes, XMFLOAT3 matTransform = XMFLOAT3(1, 1, 1));
+
+    //Tex
     void LoadTexture(std::wstring filepath, std::string name);
+
+    //Light
     void SetLight(DirectX::XMFLOAT3 pos_dir, DirectX::XMFLOAT3 strength);
     void SetAmbient(DirectX::XMFLOAT4);
     void EditLight(DirectX::XMFLOAT3 pos_dir, DirectX::XMFLOAT3 strength, unsigned int index);
     void EditAmbient(DirectX::XMFLOAT4);
+
+    //Camera
+    void SetCameraPos(DirectX::XMFLOAT3 pos);
+    DirectX::XMFLOAT3 GetCameraPos();
+
+    void CameraWalk(float d);
+    void CameraStrafe(float d);
+    void CameraPitch(float angle);
+    void CameraRotateY(float angle);
+
+    void CameraLookAt(DirectX::FXMVECTOR pos, DirectX::FXMVECTOR target, DirectX::FXMVECTOR worldUp);
+    void CameraLookAt(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& target, const DirectX::XMFLOAT3& up);
+
+    void CameraSetLens(float fovY, float aspect, float zn, float zf);
+
+    void DeleteBaseCamControl();
+    void UseBaseCamControl();
 private:
     virtual void OnResize()override;
 
@@ -115,7 +138,6 @@ private:
     virtual void OnMouseMove(WPARAM btnState, int x, int y)override;
 
     void OnKeyboardInput(const GameTimer& gt);
-    void UpdateCamera(const GameTimer& gt);
     void UpdateObjectCBs(const GameTimer& gt);
     void UpdateMainPassCB(const GameTimer& gt);
     void UpdateMaterialCBs(const GameTimer& gt);
@@ -131,6 +153,7 @@ private:
     std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
 
 private:
+    bool basic_camera_control = 1;
     bool mDraw_all = 0;
     int CBI_index = -1;
     int mat_CBI_index = 0;
@@ -158,6 +181,8 @@ private:
 
     std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
 
+    Camera mCam;
+
     // List of all the render items.
     std::vector<std::unique_ptr<RenderItem>> mAllRitems;
 
@@ -170,13 +195,8 @@ private:
 
     bool mIsWireframe = false;
 
-    XMFLOAT3 mEyePos = { 0.0f, 0.0f, 0.0f };
     XMFLOAT4X4 mView = MathHelper::Identity4x4();
     XMFLOAT4X4 mProj = MathHelper::Identity4x4();
-
-    float mTheta = 1.5f * XM_PI;
-    float mPhi = 0.2f * XM_PI;
-    float mRadius = 15.0f;
 
     POINT mLastMousePos;
 };

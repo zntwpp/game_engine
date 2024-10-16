@@ -25,7 +25,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
         GeometryGenerator::MeshData sphere = gg.CreateSphere(0.3, 40, 40);
         GeometryGenerator::MeshData cube = gg.CreateBox(2, 2, 2, 2);
         GeometryGenerator::MeshData grid = gg.CreateGrid(20, 10, 2, 2);
-        Game.CreateMaterial("mat", (XMFLOAT4)Colors::White, XMFLOAT3(0.f, 0.f, 0.f), 0.f, {2, 1, 1});
+        Game.CreateMaterial("mat", (XMFLOAT4)Colors::White, XMFLOAT3(0.f, 0.f, 0.f), 0.f, { 2, 1, 1 });
         Game.CreateMaterial("mat2", (XMFLOAT4)Colors::Red, XMFLOAT3(0.f, 0.f, 0.f), 10.f);
         Game.CreateGeometry(grid, XMMatrixTranslation(0, 0, 0), "mat", "cube");
         Game.CreateGeometry(sphere, XMMatrixTranslation(2, 0, 0), "mat2", "cube2");
@@ -39,6 +39,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
         posx.set_pos(2, 0, 0);
         pos.set_pos(0, 2, 0);
         color.set_pos(1, 1, 1);
+
+        Game.SetCameraPos({0, 3, -10});
 
         Game.SetAmbient({ 0.3,0.3,0.4,1 });
         Game.SetLight({ 0.5,0.5,0.5 }, { 0.5,0.f,0.f });

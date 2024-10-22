@@ -25,6 +25,7 @@ Game_engine::~Game_engine()
 bool Game_engine::Initialize()
 {
 
+
     BuildRootSignature();
     BuildShadersAndInputLayout();
 
@@ -35,10 +36,9 @@ void Game_engine::OnResize()
 {
     D3DApp::OnResize();
 
-    // The window resized, so update the aspect ratio and recompute the projection matrix.
-    XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
-    XMStoreFloat4x4(&mProj, P);
     mCam.SetLens(0.25f * MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
+
+    BoundingFrustum::CreateFromMatrix(mCamFrustum, mCam.GetProj());
 }
 
 void Game_engine::Update(const GameTimer& gt)
@@ -320,6 +320,16 @@ void Game_engine::UseBaseCamControl()
     basic_camera_control = 0;
 }
 
+void Game_engine::EnableFrustumCulling()
+{
+    fr_culling = 1;
+}
+
+void Game_engine::DisableFrustumCulling()
+{
+    fr_culling = 0;
+}
+
 void Game_engine::UpdateObjectCBs(const GameTimer& gt)
 {
     auto currObjectCB = mCurrFrameResource->ObjectCB.get();
@@ -513,12 +523,29 @@ void Game_engine::CreateGeometry(GeometryGenerator::MeshData obj, XMMATRIX pos, 
 
     std::vector<Vertex> vertices(object.Vertices.size());
 
+    XMFLOAT3 vMinf3(+MathHelper::Infinity, +MathHelper::Infinity, +MathHelper::Infinity);
+    XMFLOAT3 vMaxf3(-MathHelper::Infinity, -MathHelper::Infinity, -MathHelper::Infinity);
+
+    XMVECTOR vMin = XMLoadFloat3(&vMinf3);
+    XMVECTOR vMax = XMLoadFloat3(&vMaxf3);
+
     for (size_t i = 0; i < object.Vertices.size(); ++i)
     {
         vertices[i].Pos = object.Vertices[i].Position;
         vertices[i].Normal = object.Vertices[i].Normal;
         vertices[i].TexC = object.Vertices[i].TexC;
+
+        XMVECTOR P = XMLoadFloat3(&vertices[i].Pos);
+
+        vMin = XMVectorMin(vMin, P);
+        vMax = XMVectorMax(vMax, P);
     }
+
+    BoundingBox bounds;
+    XMStoreFloat3(&bounds.Center, 0.5f * (vMin + vMax));
+    XMStoreFloat3(&bounds.Extents, 0.5f * (vMax - vMin));
+
+    objSubmesh.Bounds = bounds;
 
     std::vector<std::uint16_t> indices;
     indices.insert(indices.end(), std::begin(object.GetIndices16()), std::end(object.GetIndices16()));
@@ -641,6 +668,7 @@ void Game_engine::BuildRenderItems(XMMATRIX pos, std::string name, Material mat)
     objRitem->StartIndexLocation = objRitem->Geo->DrawArgs[name].StartIndexLocation;
     objRitem->BaseVertexLocation = objRitem->Geo->DrawArgs[name].BaseVertexLocation;
     objRitem->Mat = &mat;
+    objRitem->Bounds = objRitem->Geo->DrawArgs[name].Bounds;
     mat_cbis.push_back(mat.MatCBIndex);
     mAllRitems.push_back(std::move(objRitem));
     names[name] = CBI_index;
@@ -662,27 +690,46 @@ void Game_engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std:
     auto objectCB = mCurrFrameResource->ObjectCB->Resource();
     auto matCB = mCurrFrameResource->MaterialCB->Resource();
 
+    XMMATRIX view = mCam.GetView();
+    XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
+
     // For each render item...
     for (size_t i = 0; i < ritems.size(); ++i)
     {
         if (visible_objects[i]) {
             auto ri = ritems[i];
 
-            cmdList->IASetVertexBuffers(0, 1, &ri->Geo->VertexBufferView());
-            cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
-            cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
+            //frustum vars
+            XMMATRIX world = XMLoadFloat4x4(&ri->World);
+            XMMATRIX texTransform = XMLoadFloat4x4(&ri->TexTransform);
 
-            CD3DX12_GPU_DESCRIPTOR_HANDLE tex(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-            tex.Offset(mat_cbis[i], mCbvSrvDescriptorSize);
+            XMMATRIX invWorld = XMMatrixInverse(&XMMatrixDeterminant(world), world);
 
-            D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() + ri->ObjCBIndex * objCBByteSize;
-            D3D12_GPU_VIRTUAL_ADDRESS matCBAddress = matCB->GetGPUVirtualAddress() + mat_cbis[i] * matCBByteSize;
+            // View space to the object's local space.
+            XMMATRIX viewToLocal = XMMatrixMultiply(invView, invWorld);
 
-            cmdList->SetGraphicsRootDescriptorTable(0, tex);
-            cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
-            cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
+            // Transform the camera frustum from view space to the object's local space.
+            BoundingFrustum localSpaceFrustum;
+            mCamFrustum.Transform(localSpaceFrustum, viewToLocal);
 
-            cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
+            if ((localSpaceFrustum.Contains(ri->Bounds) != DirectX::DISJOINT) || !fr_culling) {
+
+                cmdList->IASetVertexBuffers(0, 1, &ri->Geo->VertexBufferView());
+                cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
+                cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
+
+                CD3DX12_GPU_DESCRIPTOR_HANDLE tex(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+                tex.Offset(mat_cbis[i], mCbvSrvDescriptorSize);
+
+                D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() + ri->ObjCBIndex * objCBByteSize;
+                D3D12_GPU_VIRTUAL_ADDRESS matCBAddress = matCB->GetGPUVirtualAddress() + mat_cbis[i] * matCBByteSize;
+
+                cmdList->SetGraphicsRootDescriptorTable(0, tex);
+                cmdList->SetGraphicsRootConstantBufferView(1, objCBAddress);
+                cmdList->SetGraphicsRootConstantBufferView(3, matCBAddress);
+
+                cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
+            }
         }
     }
 }

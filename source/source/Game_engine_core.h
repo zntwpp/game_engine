@@ -76,6 +76,8 @@ struct RenderItem
     // Primitive topology.
     D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
+    BoundingBox Bounds;
+
     // DrawIndexedInstanced parameters.
     UINT IndexCount = 0;
     UINT StartIndexLocation = 0;
@@ -130,6 +132,10 @@ public:
 
     void DeleteBaseCamControl();
     void UseBaseCamControl();
+
+    //Other
+    void EnableFrustumCulling();
+    void DisableFrustumCulling();
 private:
     virtual void OnResize()override;
 
@@ -157,6 +163,7 @@ private:
     bool mDraw_all = 0;
     int CBI_index = -1;
     int mat_CBI_index = 0;
+    bool fr_culling = 1;
     std::unordered_map<std::string, int> names;
     std::vector<std::string> tex_names;
     std::vector<int> mat_cbis;
@@ -182,6 +189,8 @@ private:
     std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
 
     Camera mCam;
+
+    BoundingFrustum mCamFrustum;
 
     // List of all the render items.
     std::vector<std::unique_ptr<RenderItem>> mAllRitems;

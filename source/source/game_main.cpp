@@ -47,6 +47,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 
         float speed = 7;
 
+        Game.EnableFrustumCulling();
+
         while (msg.message != WM_QUIT)
         {
             // If there are Window messages then process them.

@@ -86,6 +86,9 @@
     <ClInclude Include="Collider.h">
       <Filter>header</Filter>
     </ClInclude>
+    <ClInclude Include="ObjLoader.h">
+      <Filter>header</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="source">
@@ -97,5 +100,8 @@
     <Filter Include="shaders">
       <UniqueIdentifier>{32bf29a9-da30-44b6-864c-fa42ddd082e3}</UniqueIdentifier>
     </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

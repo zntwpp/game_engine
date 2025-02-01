@@ -98,6 +98,7 @@ public:
     //Game engine interface:
     //Objects/Control
     void CreateGeometry(GeometryGenerator::MeshData obj, XMMATRIX pos, std::string mat_name, std::string name);
+    void CreateGeometry(Mesh mesh, XMMATRIX pos, std::string mat_name, std::string name);
     void CreateWorld();
     void MoveObject(std::string name, XMMATRIX pos);
     void DrawObject(std::string name);

@@ -88,7 +88,7 @@ void Game_engine::Draw(const GameTimer& gt)
     // Indicate a state transition on the resource usage.
     mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
         D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-
+  
     // Clear the back buffer and depth buffer.
     mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::LightSteelBlue, 0, nullptr);
     mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
@@ -518,6 +518,79 @@ void Game_engine::BuildShadersAndInputLayout()
     };
 }
 
+void Game_engine::CreateGeometry(Mesh mesh, XMMATRIX pos, std::string mat_name, std::string name)
+{
+
+    SubmeshGeometry objSubmesh;
+    objSubmesh.IndexCount = (UINT)mesh.indices.size();
+    objSubmesh.StartIndexLocation = 0;
+    objSubmesh.BaseVertexLocation = 0;
+
+    std::vector<Vertex> vertices(mesh.vertices.size());
+
+    XMFLOAT3 vMinf3(+MathHelper::Infinity, +MathHelper::Infinity, +MathHelper::Infinity);
+    XMFLOAT3 vMaxf3(-MathHelper::Infinity, -MathHelper::Infinity, -MathHelper::Infinity);
+
+    XMVECTOR vMin = XMLoadFloat3(&vMinf3);
+    XMVECTOR vMax = XMLoadFloat3(&vMaxf3);
+
+    for (size_t i = 0; i < mesh.vertices.size(); ++i)
+    {
+        vertices[i].Pos = mesh.vertices[i].Pos;
+        vertices[i].Normal = mesh.vertices[i].Normal;
+        vertices[i].TexC = mesh.vertices[i].TexC;
+
+        verts[name].push_back(vertices[i].Pos);
+
+        XMVECTOR P = XMLoadFloat3(&vertices[i].Pos);
+
+        vMin = XMVectorMin(vMin, P);
+        vMax = XMVectorMax(vMax, P);
+    }
+
+    BoundingBox bounds;
+    XMStoreFloat3(&bounds.Center, 0.5f * (vMin + vMax));
+    XMStoreFloat3(&bounds.Extents, 0.5f * (vMax - vMin));
+
+    objSubmesh.Bounds = bounds;
+
+    std::vector<std::uint16_t> indices;
+    indices.insert(indices.end(), std::begin(mesh.indices), std::end(mesh.indices));
+
+    const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+    const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+
+    auto geo = std::make_unique<MeshGeometry>();
+    geo->Name = name;
+
+    ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+    CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+    ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+    CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+    geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+        mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+
+    geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+        mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+
+    geo->VertexByteStride = sizeof(Vertex);
+    geo->VertexBufferByteSize = vbByteSize;
+    geo->IndexFormat = DXGI_FORMAT_R16_UINT;
+    geo->IndexBufferByteSize = ibByteSize;
+
+    geo->DrawArgs[name] = objSubmesh;
+
+    mGeometries[geo->Name] = std::move(geo);
+    ++CBI_index;
+    Material mat_return;
+    if (mMaterials.count(mat_name)) {
+        mat_return = *mMaterials[mat_name].get();
+    }
+    BuildRenderItems(pos, name, mat_return);
+}
+
 void Game_engine::CreateGeometry(GeometryGenerator::MeshData obj, XMMATRIX pos, std::string mat_name, std::string name)
 {
     GeometryGenerator::MeshData object = obj;
@@ -633,7 +706,9 @@ void Game_engine::BuildPSOs()
         reinterpret_cast<BYTE*>(mShaders["opaquePS"]->GetBufferPointer()),
         mShaders["opaquePS"]->GetBufferSize()
     };
+
     opaquePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    opaquePsoDesc.RasterizerState.AntialiasedLineEnable = 8;
     opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     opaquePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     opaquePsoDesc.SampleMask = UINT_MAX;

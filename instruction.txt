@@ -6,6 +6,8 @@ LoadTexture(filepath, name)
 after init:
 CreateMaterial(name, diffuse_albedo, fresnel, roughnes, mat_transform = {1,1,1})
 CreateGeometry(obj, pos, mat_name, name)
+Mesh mesh = ObjLoader.load(path) to load
+CreateGeometry(mesh, pos, mat_name, name)
 CreateWorld()
 
 Other:

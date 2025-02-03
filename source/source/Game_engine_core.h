@@ -135,9 +135,6 @@ public:
     void DeleteBaseCamControl();
     void UseBaseCamControl();
 
-    //Other
-    void EnableFrustumCulling();
-    void DisableFrustumCulling();
 private:
     virtual void OnResize()override;
 
@@ -165,7 +162,7 @@ private:
     bool mDraw_all = 0;
     int CBI_index = -1;
     int mat_CBI_index = 0;
-    bool fr_culling = 1;
+
     std::unordered_map<std::string, int> names;
     std::vector<std::string> tex_names;
     std::vector<int> mat_cbis;
@@ -213,3 +210,10 @@ private:
 
     POINT mLastMousePos;
 };
+
+/*
+all the girls changed during development:
+milana 5 july - 20 july (2024)
+vika 23 august - 18 december (2024)
+rita 24 january - ? (2025)
+*/

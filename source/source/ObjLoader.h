@@ -10,7 +10,7 @@ public:
     Mesh LoadObj(const std::string& pFile) {
         // Create an instance of the Importer class
         Assimp::Importer importer;
-        const aiScene* scene = importer.ReadFile(pFile, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+        const aiScene* scene = importer.ReadFile(pFile, aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_PreTransformVertices);
 
         // If the import failed, report it
         if (nullptr == scene) {
@@ -18,7 +18,7 @@ public:
             return Mesh();
         }
 
-        return processNode(scene->mRootNode->mChildren[0], scene);
+        return processNode(scene->mRootNode, scene);
     }
     std::string get_error() {
         return m_err;

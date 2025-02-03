@@ -326,16 +326,6 @@ void Game_engine::UseBaseCamControl()
     basic_camera_control = 0;
 }
 
-void Game_engine::EnableFrustumCulling()
-{
-    fr_culling = 1;
-}
-
-void Game_engine::DisableFrustumCulling()
-{
-    fr_culling = 0;
-}
-
 void Game_engine::UpdateObjectCBs(const GameTimer& gt)
 {
     auto currObjectCB = mCurrFrameResource->ObjectCB.get();
@@ -708,7 +698,6 @@ void Game_engine::BuildPSOs()
     };
 
     opaquePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    opaquePsoDesc.RasterizerState.AntialiasedLineEnable = 8;
     opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
     opaquePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
     opaquePsoDesc.SampleMask = UINT_MAX;
@@ -795,7 +784,7 @@ void Game_engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std:
             BoundingFrustum localSpaceFrustum;
             mCamFrustum.Transform(localSpaceFrustum, viewToLocal);
 
-            if ((localSpaceFrustum.Contains(ri->Bounds) != DirectX::DISJOINT) || !fr_culling) {
+            if (localSpaceFrustum.Contains(ri->Bounds) != DirectX::DISJOINT) {
 
                 cmdList->IASetVertexBuffers(0, 1, &ri->Geo->VertexBufferView());
                 cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());

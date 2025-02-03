@@ -25,19 +25,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
         if (!Game.Initialize())
             return 0;
 
+        GeometryGenerator gg;
         ObjLoader loader;
         Mesh msh = loader.LoadObj("../../Models/monkey.obj");
         Game.CreateMaterial("mat", (XMFLOAT4)Colors::Gray, (XMFLOAT3)Colors::White, 0.02);
-        Game.CreateGeometry(msh, XMMatrixTranslation(0, 0, 0), "mat", "obj");
+        Game.CreateGeometry(msh, XMMatrixTranslation(0,0,0), "mat", "obj");
         Game.CreateWorld();
         MSG msg = { 0 };
         mTimer.Reset();
 
-        Game.EnableFrustumCulling();
         Game.CameraWalk(-4);
         Game.SetAmbient(XMFLOAT4(0.4,0.4,0.6,1));
         Game.SetLight(XMFLOAT3(0.7, -0.5, 0.4), XMFLOAT3(0.6,0.5,0.5));
-
         while (msg.message != WM_QUIT)
         {
             // If there are Window messages then process them.

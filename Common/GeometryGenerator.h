@@ -44,10 +44,10 @@ public:
 			TangentU(tx, ty, tz), 
             TexC(u,v){}
 
-        DirectX::XMFLOAT3 Position;
-        DirectX::XMFLOAT3 Normal;
-        DirectX::XMFLOAT3 TangentU;
-        DirectX::XMFLOAT2 TexC;
+		DirectX::XMFLOAT3 Position = { 0,0,0 };
+        DirectX::XMFLOAT3 Normal = { 0,0,0 };
+        DirectX::XMFLOAT3 TangentU = { 0,0,0 };
+        DirectX::XMFLOAT2 TexC = { 0,0};
 	};
 
 	struct MeshData

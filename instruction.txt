@@ -32,7 +32,3 @@ CameraLookAt(pos, target, up) look at
 CameraSetLens(fovY, aspect, zn, zf) set lens
 DeletBaseCamControl() dont use base camera control
 UseBaseCamControl() use base camera control 
-
-Other:
-EnableFrustumCulling() - enable fr culling //default is enabled
-DisableFrustumCulling() disable fr culling 

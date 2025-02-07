@@ -32,4 +32,7 @@ CameraLookAt(pos, target, up) look at
 CameraSetLens(fovY, aspect, zn, zf) set lens
 DeletBaseCamControl() dont use base camera control
 UseBaseCamControl() use base camera control 
+<<<<<<< HEAD
 
+=======
+>>>>>>> bf82ed3b711141f3e6a1a473bf6284e7c7134821

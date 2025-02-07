@@ -4,11 +4,11 @@ Mandatory functions:
 
 LoadTexture(filepath, name)
 after init:
-CreateMaterial(name, diffuse_albedo, fresnel, roughnes, mat_transform = {1,1,1})
+CreateMaterial(name, diffuse_albedo, fresnel, roughnes, tex_name, mat_transform = {1,1,1})
 CreateGeometry(obj, pos, mat_name, name)
 Mesh mesh = ObjLoader.load(path) to load
 CreateGeometry(mesh, pos, mat_name, name)
-CreateWorld()
+CreateWorld() - necessarily
 
 Other:
 SetAmbient(color) - set ambinet light
@@ -18,7 +18,7 @@ EditLight(pos/dir, strength, index) - edit point/directional/spot light
 MoveObject(name, pos) - to move object
 DrawObject(name) - to draw object if the object has been removed from the drawing cycle
 DoNotDrawObject(name) - to remove object from drawing cycle
-IsKeyPresed(key) - check key
+IsKeyPresed(key) - check key state
 RotateObject(name, matrix) - comming soon
 
 Camera:
@@ -33,6 +33,3 @@ CameraSetLens(fovY, aspect, zn, zf) set lens
 DeletBaseCamControl() dont use base camera control
 UseBaseCamControl() use base camera control 
 
-Other:
-EnableFrustumCulling() - enable fr culling //default is enabled
-DisableFrustumCulling() disable fr culling 

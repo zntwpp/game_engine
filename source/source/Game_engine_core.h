@@ -97,15 +97,17 @@ public:
 public:
     //Game engine interface:
     //Objects/Control
-    void CreateGeometry(GeometryGenerator::MeshData obj, XMMATRIX pos, std::string mat_name, std::string name);
-    void CreateGeometry(Mesh mesh, XMMATRIX pos, std::string mat_name, std::string name);
+    void CreateGeometry(GeometryGenerator::MeshData obj, XMFLOAT3 pos, std::string mat_name, std::string name);
+    void CreateGeometry(Mesh mesh, XMFLOAT3 pos, std::string mat_name, std::string name);
     void CreateWorld();
     void MoveObject(std::string name, XMMATRIX pos);
     void DrawObject(std::string name);
     void DoNotDrawObject(std::string name);
     bool IsKeyPresed(char key);
     void RotateObject(std::string name, XMMATRIX rotation);
-    void CreateMaterial(std::string name, XMFLOAT4 difuse_albedo, XMFLOAT3 FresnelR0, float Roughnes, XMFLOAT3 matTransform = XMFLOAT3(1, 1, 1));
+    //legacy func
+    //void CreateMaterial(std::string name, XMFLOAT4 difuse_albedo, XMFLOAT3 FresnelR0, float Roughnes, XMFLOAT3 matTransform = XMFLOAT3(1, 1, 1));
+    void CreateMaterial(std::string name, XMFLOAT4 difuse_albedo, XMFLOAT3 FresnelR0, float Roughnes, std::string tex_name,  XMFLOAT3 matTransform = XMFLOAT3(1, 1, 1));
     void UpdateMaterial(std::string name, XMFLOAT4 difuse_albedo, XMFLOAT3 FresnelR0, float Roughnes, XMFLOAT3 matTransform = XMFLOAT3(1, 1, 1));
     std::vector<XMFLOAT3> GetVertices(std::string name);
 
@@ -147,7 +149,7 @@ private:
     void UpdateMainPassCB(const GameTimer& gt);
     void UpdateMaterialCBs(const GameTimer& gt);
 
-    void BuildDescriptorHeaps();
+    //void BuildDescriptorHeaps();
     void BuildRootSignature();
     void BuildShadersAndInputLayout();
     void BuildPSOs();
@@ -184,6 +186,7 @@ private:
     std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
     std::unordered_map<std::string, ComPtr<ID3DBlob>> mShaders;
     std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> mPSOs;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor;
 
     std::unordered_map<std::string, std::vector<XMFLOAT3>> verts;
 

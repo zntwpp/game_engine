@@ -21,14 +21,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
     try
     {
         Game_engine Game(hInstance);
-        Game.LoadTexture(L"../../Textures/white.dds", "tex");
+        Game.LoadTexture(L"../../Textures/white.dds", "white");
+        Game.LoadTexture(L"../../Textures/stone.dds", "stone");
         if (!Game.Initialize())
             return 0;
 
         ObjLoader loader;
-        Mesh msh = loader.LoadObj("../../Models/monkey.obj");
-        Game.CreateMaterial("mat", (XMFLOAT4)Colors::Gray, (XMFLOAT3)Colors::White, 0.02f);
-        Game.CreateGeometry(msh, XMMatrixTranslation(0,0,0), "mat", "obj");
+        Mesh msh = loader.LoadObj("../../Models/cat.obj");
+        Mesh msh2 = loader.LoadObj("../../Models/monkey.obj");
+        loader.get_error();
+        Game.CreateMaterial("mat", (XMFLOAT4)Colors::Gold, (XMFLOAT3)Colors::White, 0.02f, "white");
+        Game.CreateMaterial("mat2", (XMFLOAT4)Colors::White, (XMFLOAT3)Colors::White, 0.02f, "stone");
+
+        Game.CreateGeometry(msh, XMFLOAT3(0, 0, 0), "mat", "cat");
+        Game.CreateGeometry(msh2, XMFLOAT3(3, 0, 0), "mat2", "monkey");
         Game.CreateWorld();
         MSG msg = { 0 };
         mTimer.Reset();
@@ -36,6 +42,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
         Game.CameraWalk(-4);
         Game.SetAmbient(XMFLOAT4(0.4f,0.4f,0.6f,1.f));
         Game.SetLight(XMFLOAT3(0.7f, -0.5f, 0.4f), XMFLOAT3(0.6f,0.5f,0.5f));
+        //Game.DoNotDrawObject("monkey");
         while (msg.message != WM_QUIT)
         {
             // If there are Window messages then process them.
@@ -47,7 +54,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
             // Otherwise, do animation/game stuff.
             else
             {
-                Game.MoveObject("obj", XMMatrixRotationY(mTimer.TotalTime()));
+                //chip
+                Game.MoveObject("cat", XMMatrixRotationY(mTimer.TotalTime()));
                 update(Game);
             }
         }

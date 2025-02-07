@@ -25,7 +25,13 @@ Game_engine::~Game_engine()
 bool Game_engine::Initialize()
 {
 
+    D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+    srvHeapDesc.NumDescriptors = 3;
+    srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
 
+    hDescriptor = mSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
     BuildRootSignature();
     BuildShadersAndInputLayout();
 
@@ -101,8 +107,7 @@ void Game_engine::Draw(const GameTimer& gt)
 
     mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 
-    auto passCB = mCurrFrameResource->PassCB->Resource();
-    mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
+    mCommandList->SetGraphicsRootConstantBufferView(2, mCurrFrameResource->PassCB->Resource()->GetGPUVirtualAddress());
 
     DrawRenderItems(mCommandList.Get(), mOpaqueRitems);
 
@@ -193,37 +198,47 @@ bool Game_engine::IsKeyPresed(char key) {
 
     else return 0;
 }
-
+/*
+* comming soon (maybe)
 void Game_engine::RotateObject(std::string name, XMMATRIX rotation)
 {
     XMStoreFloat4x4(&mOpaqueRitems[names[name]]->World, rotation);
-}
+}*/
 
-void Game_engine::CreateMaterial(std::string name, XMFLOAT4 difuse_albedo, XMFLOAT3 FresnelR0, float Roughnes, XMFLOAT3 MatTransform)
+void Game_engine::CreateMaterial(std::string name, XMFLOAT4 difuse_albedo, XMFLOAT3 FresnelR0, float Roughnes, std::string tex_name, XMFLOAT3 MatTransform)
 {
-    XMFLOAT4X4 mat_t;
-    XMStoreFloat4x4(&mat_t, XMMatrixScaling(MatTransform.x, MatTransform.y, MatTransform.z));
     auto mat = std::make_unique<Material>();
     mat->Name = name;
     mat->DiffuseAlbedo = difuse_albedo;
     mat->FresnelR0 = FresnelR0;
     mat->Roughness = Roughnes;
-    mat->MatTransform = mat_t;
+    XMStoreFloat4x4(&mat->MatTransform, XMMatrixScaling(MatTransform.x, MatTransform.y, MatTransform.z));
     mat->MatCBIndex = mat_CBI_index;
     mat->DiffuseSrvHeapIndex = mat_CBI_index;
     mat->NormalSrvHeapIndex = mat_CBI_index;
     ++mat_CBI_index;
     mMaterials[name] = std::move(mat);
+
+    auto tex = mTextures[tex_name]->Resource;
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Format = tex->GetDesc().Format;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MostDetailedMip = 0;
+    srvDesc.Texture2D.MipLevels = tex->GetDesc().MipLevels;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+    md3dDevice->CreateShaderResourceView(tex.Get(), &srvDesc, hDescriptor);
+
+    hDescriptor.Offset(1, mCbvSrvDescriptorSize);
 }
 
 void Game_engine::UpdateMaterial(std::string name, XMFLOAT4 difuse_albedo, XMFLOAT3 FresnelR0, float Roughnes, XMFLOAT3 MatTransform)
 {
-    XMFLOAT4X4 mat_t;
-    XMStoreFloat4x4(&mat_t, XMMatrixScaling(MatTransform.x, MatTransform.y, MatTransform.z));
     mMaterials[name]->DiffuseAlbedo = difuse_albedo;
     mMaterials[name]->FresnelR0 = FresnelR0;
     mMaterials[name]->Roughness = Roughnes;
-    mMaterials[name]->MatTransform = mat_t;
+    XMStoreFloat4x4(&mMaterials[name]->MatTransform, XMMatrixScaling(MatTransform.x, MatTransform.y, MatTransform.z));
 }
 
 std::vector<XMFLOAT3> Game_engine::GetVertices(std::string name)
@@ -330,30 +345,19 @@ void Game_engine::UpdateObjectCBs(const GameTimer& gt)
 {
     auto currObjectCB = mCurrFrameResource->ObjectCB.get();
     for (auto& e : mAllRitems)
-    {
-        // Only update the cbuffer data if the constants have changed.  
-        // This needs to be tracked per frame resource.
-        if (e->NumFramesDirty > 0)
-        {
-            XMMATRIX world = XMLoadFloat4x4(&e->World);
-            XMMATRIX texTransform = XMLoadFloat4x4(&e->TexTransform);
-
-            ObjectConstants objConstants;
-            XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
-            XMStoreFloat4x4(&objConstants.TexTransform, XMMatrixTranspose(texTransform));
-
-            currObjectCB->CopyData(e->ObjCBIndex, objConstants);
-
-            // Next FrameResource need to be updated too.
-            //e->NumFramesDirty--;
-        }
+    {      
+        ObjectConstants objConstants;
+        XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(XMLoadFloat4x4(&e->World)));
+        XMStoreFloat4x4(&objConstants.TexTransform, XMMatrixTranspose(XMLoadFloat4x4(&e->TexTransform)));
+        
+        currObjectCB->CopyData(e->ObjCBIndex, objConstants);           
+        
     }
 }
 
 
 void Game_engine::UpdateMainPassCB(const GameTimer& gt)
 {
-  
     XMMATRIX view = mCam.GetView();
     XMMATRIX proj = mCam.GetProj();
 
@@ -378,8 +382,7 @@ void Game_engine::UpdateMainPassCB(const GameTimer& gt)
     
     set_lights(&mMainPassCB);
 
-    auto currPassCB = mCurrFrameResource->PassCB.get();
-    currPassCB->CopyData(0, mMainPassCB);
+    mCurrFrameResource->PassCB.get()->CopyData(0, mMainPassCB);
 }
 
 void Game_engine::UpdateMaterialCBs(const GameTimer& gt)
@@ -392,23 +395,21 @@ void Game_engine::UpdateMaterialCBs(const GameTimer& gt)
         Material* mat = e.second.get();
         if (mat->NumFramesDirty > 0)
         {
-            XMMATRIX matTransform = XMLoadFloat4x4(&mat->MatTransform);
-
             MaterialConstants matConstants;
             matConstants.DiffuseAlbedo = mat->DiffuseAlbedo;
             matConstants.FresnelR0 = mat->FresnelR0;
             matConstants.Roughness = mat->Roughness;
 
-            XMStoreFloat4x4(&matConstants.MatTransform, XMMatrixTranspose(matTransform));
+            XMStoreFloat4x4(&matConstants.MatTransform, XMMatrixTranspose(XMLoadFloat4x4(&mat->MatTransform)));
 
             currMaterialCB->CopyData(mat->MatCBIndex, matConstants);
 
             // Next FrameResource need to be updated too.
-            //mat->NumFramesDirty--;
+            mat->NumFramesDirty--;
         }
     }
 }
-
+/*
 void Game_engine::BuildDescriptorHeaps()
 {
     //
@@ -426,7 +427,6 @@ void Game_engine::BuildDescriptorHeaps()
     CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(mSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
     auto firstTex = mTextures[tex_names[0]]->Resource;
-
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Format = firstTex->GetDesc().Format;
@@ -445,6 +445,7 @@ void Game_engine::BuildDescriptorHeaps()
         md3dDevice->CreateShaderResourceView(mTextures[tex_names[i]]->Resource.Get(), &srvDesc, hDescriptor);
     }
 }
+*/
 
 void Game_engine::BuildRootSignature()
 {
@@ -508,7 +509,7 @@ void Game_engine::BuildShadersAndInputLayout()
     };
 }
 
-void Game_engine::CreateGeometry(Mesh mesh, XMMATRIX pos, std::string mat_name, std::string name)
+void Game_engine::CreateGeometry(Mesh mesh, XMFLOAT3 pos, std::string mat_name, std::string name)
 {
 
     SubmeshGeometry objSubmesh;
@@ -578,10 +579,10 @@ void Game_engine::CreateGeometry(Mesh mesh, XMMATRIX pos, std::string mat_name, 
     if (mMaterials.count(mat_name)) {
         mat_return = *mMaterials[mat_name].get();
     }
-    BuildRenderItems(pos, name, mat_return);
+    BuildRenderItems(XMMatrixTranslation(pos.x, pos.y, pos.z), name, mat_return);
 }
 
-void Game_engine::CreateGeometry(GeometryGenerator::MeshData obj, XMMATRIX pos, std::string mat_name, std::string name)
+void Game_engine::CreateGeometry(GeometryGenerator::MeshData obj, XMFLOAT3 pos, std::string mat_name, std::string name)
 {
     GeometryGenerator::MeshData object = obj;
 
@@ -652,7 +653,7 @@ void Game_engine::CreateGeometry(GeometryGenerator::MeshData obj, XMMATRIX pos, 
     if (mMaterials.count(mat_name)) {
         mat_return = *mMaterials[mat_name].get();
     }
-    BuildRenderItems(pos, name, mat_return);
+    BuildRenderItems(XMMatrixTranslation(pos.x, pos.y, pos.z), name, mat_return);
 }
 
 void Game_engine::CreateWorld()
@@ -660,7 +661,7 @@ void Game_engine::CreateWorld()
     for (auto& e : mAllRitems)
         mOpaqueRitems.push_back(e.get());
     BuildFrameResources();
-    BuildDescriptorHeaps();
+    //BuildDescriptorHeaps();
     BuildPSOs();
 
     // Execute the initialization commands.
@@ -773,7 +774,7 @@ void Game_engine::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std:
 
             //frustum vars
             XMMATRIX world = XMLoadFloat4x4(&ri->World);
-            XMMATRIX texTransform = XMLoadFloat4x4(&ri->TexTransform);
+            //XMMATRIX texTransform = XMLoadFloat4x4(&ri->TexTransform);
 
             XMMATRIX invWorld = XMMatrixInverse(&XMMatrixDeterminant(world), world);
 

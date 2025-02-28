@@ -18,15 +18,11 @@ Collider::Collider(std::vector<XMFLOAT3> vert)
 
 
 bool Collider::is_intersect(Collider* msh, XMFLOAT3 frst_pos, XMFLOAT3 scnd_pos)
-{
-    float max_size_x = msh->size_x + size_x;
-    float max_size_z = msh->size_y + size_y;
-    float max_size_y = msh->size_z + size_z;
-    
+{   
     // delete this shit if it doesnot working
-    if (abs(frst_pos.x - scnd_pos.x) <= max_size_x) {
-        if (abs(frst_pos.y - scnd_pos.y) <= max_size_y) {
-            if (abs(frst_pos.z - scnd_pos.z) <= max_size_z) {
+    if (abs(frst_pos.x - scnd_pos.x) <= msh->size_x + size_x) {
+        if (abs(frst_pos.y - scnd_pos.y) <= msh->size_y + size_y) {
+            if (abs(frst_pos.z - scnd_pos.z) <= msh->size_z + size_z) {
                 return 1;
             }
         }
